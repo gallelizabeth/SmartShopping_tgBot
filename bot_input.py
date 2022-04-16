@@ -10,18 +10,49 @@ logger = logging.getLogger(__name__)
 
 TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
 
+
 def start(update, context):
     update.message.reply_text(
-        "Привет! Я посчитаю количество символов твоего сообщений. Напишите мне что-нибудь, и я пришлю тебе число!")
+        "Привет! Я помогу вам составить список покупок и найти нужный магазин :) "
+        "Давай приступим!")
+    login(update, context)
 
-def counter(update, context):
-    answer = 'В вашем сообщении '
-    if len(update.message.text) == 1:
-        update.message.reply_text(answer + str(len(update.message.text)) + ' символ.')
-    elif 3 <= len(update.message.text) <= 5:
-        update.message.reply_text(answer + str(len(update.message.text)) + ' символа.')
-    else:
-        update.message.reply_text(answer + str(len(update.message.text)) + ' символов.')
+
+def login(update, context):
+    update.message.reply_text("Для начала, давай зарегестрируемся."
+                              "Введи как к тебе обращаться и ваш адрес через точку с запятой (;)")
+    input_text = update.message.text
+    name, adress = input_text.split(';')
+    search(update, context)
+
+
+def search(update, context):
+    update.message.reply_text("Теперь, выбери что хочешь сделать далее: "
+                              "составить список, редактировать профиль, маршрут до магазина")
+    check_answer(update, context)
+
+
+
+def check_answer(update, context):
+    input_text = update.message.text
+    if input_text == 'составить список':
+        make_a_list(update, context)
+    elif input_text == 'редактировать профиль':
+        make_a_way(update, context)
+    elif input_text == 'маршрут до магазина':
+        edit_profil(update, context)
+
+
+def make_a_list(update, context):
+    update.message.reply_text('Составляем список..')
+
+
+def make_a_way(update, context):
+    update.message.reply_text('Подключение к профилю..')
+
+
+def edit_profil(update, context):
+    update.message.reply_text('Поиск..')
 
 
 def main():
@@ -30,8 +61,9 @@ def main():
     # После регистрации обработчика в диспетчере
     # эта функция будет вызываться при получении сообщения
     # с типом "текст", т. е. текстовых сообщений.
-    text_handler = MessageHandler(Filters.text, counter)
+    text_handler = MessageHandler(Filters.text, search)
     dp.add_handler(CommandHandler("start", start))
+
     dp.add_handler(text_handler)
     updater.start_polling()
 
