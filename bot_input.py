@@ -26,10 +26,11 @@ def start(update, context):
 
 def write_address(update, context):
     global done_address
-    update.message.reply_text("Укажите ваш адрес")
+    update.message.reply_text("Укажи адрес к которому ты хочешь прокладывать маршруты")
     address = update.message.text
-    if address[0] != '/':
+    if 'foundshop' not in address:
         done_address = True
+        update.message.reply_text("Ты успешно установил адрес")
     return address
 
 
@@ -47,14 +48,15 @@ def make_a_way(update, context):
     if done_address:
         update.message.reply_text('Поиск..')
     else:
-        update.message.reply_text('Упс! Похоже, вы не указали адрес')
+        update.message.reply_text('Упс! Похоже, ты не указал адрес')
 
 
 def edit_address(update, context):
     if done_address:
-        update.message.reply_text('Подключение к профилю..')
+        update.message.reply_text('Похоже, ты хочешь поменять адрес')
+        write_address(update, context)
     else:
-        update.message.reply_text('Упс! Похоже, вы не указали адрес')
+        update.message.reply_text('Упс! Похоже, ты не указал адрес')
 
 
 def main():
