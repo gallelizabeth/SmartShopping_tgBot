@@ -40,16 +40,6 @@ def write_address(update, context):
     writing_adrs = True
 
 
-def reaction_2(update, context):
-    global writing_adrs, done_address
-    if writing_adrs:
-        address = update.message.reply_text
-        update.message.reply_text("Ты успешно установил адрес")
-        writing_adrs = False
-        done_address = True
-        return address
-
-
 def help_me(update, context):
     update.message.reply_text("Если у вас что-то не получается, попробуйте поменять регистр сообщения. "
                               "Если же проблема не исчезла, советуем обратиться в поддержку. \n"
@@ -65,6 +55,7 @@ def create_list(update, context):
 
 def reaction(update, context):
     global shopping_list, creating, saving, all_lists
+    global writing_adrs, done_address
     if creating:
         list_prod.append(update.message.text)
         if update.message.text != 'СТОП' and update.message.text != 'стоп':
@@ -91,6 +82,12 @@ def reaction(update, context):
         shopping_list = ''
         update.message.reply_text(f'Список сохранен как "{name}"')
         saving = False
+    if writing_adrs:
+        address = update.message.reply_text
+        update.message.reply_text("Ты успешно установил адрес")
+        writing_adrs = False
+        done_address = True
+        return address
 
 
 def save_list(update, context, saving_list):  # сохранение списка в бд
@@ -120,13 +117,12 @@ def main():
     updater = Updater(TOKEN)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("setaddress", write_address))
     dp.add_handler(CommandHandler("makealist", create_list))
     dp.add_handler(MessageHandler(Filters.text, reaction))
-    dp.add_handler(CommandHandler("setaddress", write_address))
     dp.add_handler(CommandHandler("editaddress", edit_address))
     dp.add_handler(CommandHandler("foundshop", make_a_way))
     dp.add_handler(CommandHandler("help", help_me))
-    dp.add_handler(MessageHandler(Filters.text, reaction_2))
     # "/editlist – редактировать список \n"
 
     updater.start_polling()
