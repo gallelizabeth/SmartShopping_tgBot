@@ -17,6 +17,7 @@ done_address = False
 creating = False
 saving = False
 writing_adrs = False
+save = False
 
 # keyboard
 save_items = [['Да', 'Нет']]
@@ -55,7 +56,7 @@ def create_list(update, context):
 
 def reaction(update, context):
     global shopping_list, creating, saving, all_lists
-    global writing_adrs, done_address, list_prod
+    global writing_adrs, done_address, list_prod, save
     if creating:
         list_prod.append(update.message.text)
         if update.message.text != 'СТОП' and update.message.text != 'стоп':
@@ -71,12 +72,14 @@ def reaction(update, context):
             update.message.reply_text(shopping_list)
             creating = False
             save_list(update, context, shopping_list)
-    elif update.message.text == 'Да' and not creating:
+    elif update.message.text == 'Да' and save:
         update.message.reply_text('Дай название списку')
+        save = False
         saving = True
-    elif update.message.text == 'Нет' and not creating:
+    elif update.message.text == 'Нет' and save:
         shopping_list = ''
         list_prod = []
+        save = False
         update.message.reply_text('Список удален')
     elif saving:
         name = update.message.text
@@ -94,8 +97,9 @@ def reaction(update, context):
 
 
 def save_list(update, context, saving_list):  # сохранение списка в бд
-    global saving
+    global save
     update.message.reply_text("Ты хочешь сохранить список?", reply_markup=markup_1)
+    save = True
 
 
 def see_list(update, context):  # посмотреть список
