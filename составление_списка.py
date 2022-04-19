@@ -75,6 +75,7 @@ def reaction(update, context):
         update.message.reply_text('Дай название списку')
         saving = True
     elif update.message.text == 'Нет' and not creating:
+        shopping_list = ''
         update.message.reply_text('Список удален')
     elif saving:
         name = update.message.text
