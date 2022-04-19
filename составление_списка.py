@@ -9,10 +9,11 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-TOKEN = '5349979559:AAHcXnyvYcT_ETNfqlJiJNC3uDjicwmU3mM'
+TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
 list_prod = []
 shopping_list = ''
 all_lists = dict()
+done_address = False
 creating = False
 saving = False
 
@@ -30,6 +31,21 @@ def start(update, context):
                               "/makealist – собрать список \n"
                               "/foundshop – найти ближайший магазин \n"
                               "нажмите /help , если вам понадобится помощь")
+
+
+def write_address(update, context):
+    global done_address
+    update.message.reply_text("Укажите ваш адрес")
+    address = update.message.text
+    if address[0] != '/':
+        done_address = True
+    return address
+
+
+def help_me(update, context):
+    update.message.reply_text("Если у вас что-то не получается, попробуйте поменять регистр сообщения. "
+                              "Если же проблема не исчезла, советуем обратиться в поддержку. \n"
+                              "Приятной эксплуатации :)")
 
 
 def create_list(update, context):
@@ -78,12 +94,31 @@ def see_list(update, context):  # посмотреть список
     pass
 
 
+def make_a_way(update, context):
+    if done_address:
+        update.message.reply_text('Поиск..')
+    else:
+        update.message.reply_text('Упс! Похоже, вы не указали адрес')
+
+
+def edit_address(update, context):
+    if done_address:
+        update.message.reply_text('Подключение к профилю..')
+    else:
+        update.message.reply_text('Упс! Похоже, вы не указали адрес')
+
+
 def main():
     updater = Updater(TOKEN)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("makealist", create_list))
     dp.add_handler(MessageHandler(Filters.text, reaction))
+    dp.add_handler(CommandHandler("setaddress", write_address))
+    dp.add_handler(CommandHandler("editaddress", edit_address))
+    dp.add_handler(CommandHandler("foundshop", make_a_way))
+    dp.add_handler(CommandHandler("help", help_me))
+    # "/editlist – редактировать список \n"
 
     updater.start_polling()
 
