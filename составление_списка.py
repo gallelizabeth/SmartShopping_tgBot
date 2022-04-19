@@ -20,7 +20,7 @@ writing_adrs = False
 
 # keyboard
 save_items = [['Да', 'Нет']]
-markup_1 = ReplyKeyboardMarkup(save_items, one_time_keyboard=True)
+markup_1 = ReplyKeyboardMarkup(save_items, one_time_keyboard=False)
 
 
 def start(update, context):
@@ -55,7 +55,7 @@ def create_list(update, context):
 
 def reaction(update, context):
     global shopping_list, creating, saving, all_lists
-    global writing_adrs, done_address
+    global writing_adrs, done_address, list_prod
     if creating:
         list_prod.append(update.message.text)
         if update.message.text != 'СТОП' and update.message.text != 'стоп':
@@ -76,11 +76,13 @@ def reaction(update, context):
         saving = True
     elif update.message.text == 'Нет' and not creating:
         shopping_list = ''
+        list_prod = []
         update.message.reply_text('Список удален')
     elif saving:
         name = update.message.text
         all_lists[name] = shopping_list
         shopping_list = ''
+        list_prod = []
         update.message.reply_text(f'Список сохранен как "{name}"')
         saving = False
     if writing_adrs:
