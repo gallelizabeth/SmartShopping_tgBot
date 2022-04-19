@@ -37,7 +37,7 @@ def start(update, context):
 
 def write_address(update, context):
     global writing_adrs
-    update.message.reply_text("Укажи адрес к которому ты хочешь прокладывать маршруты")
+    update.message.reply_text("Укажи адрес, к которому ты хочешь прокладывать маршруты")
     writing_adrs = True
 
 
