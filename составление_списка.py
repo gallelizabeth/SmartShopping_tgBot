@@ -16,6 +16,7 @@ all_lists = dict()
 done_address = False
 creating = False
 saving = False
+writing_adrs = False
 
 # keyboard
 save_items = [['Да', 'Нет']]
@@ -34,12 +35,19 @@ def start(update, context):
 
 
 def write_address(update, context):
-    global done_address
-    update.message.reply_text("Укажите ваш адрес")
-    address = update.message.text
-    if address[0] != '/':
+    global writing_adrs
+    update.message.reply_text("Укажи адрес к которому ты хочешь прокладывать маршруты")
+    writing_adrs = True
+
+
+def reaction_2(update, context):
+    global writing_adrs, done_address
+    if writing_adrs:
+        address = update.message.reply_text
+        update.message.reply_text("Ты успешно установил адрес")
+        writing_adrs = False
         done_address = True
-    return address
+        return address
 
 
 def help_me(update, context):
@@ -118,6 +126,7 @@ def main():
     dp.add_handler(CommandHandler("editaddress", edit_address))
     dp.add_handler(CommandHandler("foundshop", make_a_way))
     dp.add_handler(CommandHandler("help", help_me))
+    dp.add_handler(MessageHandler(Filters.text, reaction_2))
     # "/editlist – редактировать список \n"
 
     updater.start_polling()
