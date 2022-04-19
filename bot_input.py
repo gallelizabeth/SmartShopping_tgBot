@@ -42,6 +42,14 @@ def help_me(update, context):
 
 
 def make_a_list(update, context):
+    import sqlite3
+    con = sqlite3.connect("lists_db.db")
+    cur = con.cursor()
+    quary = """INSERT INTO saves(name_of_list, list) VALUES (""" + str(name) + """,""" + str(
+        list_prod) + """)"""
+    cur.execute(quary)
+    con.commit()
+    con.close()
     update.message.reply_text('Составляем список..')
 
 
