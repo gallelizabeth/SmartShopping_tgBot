@@ -172,8 +172,7 @@ def make_a_way(update, context):
 
 def edit_address(update, context):
     global writing_adrs
-    update.message.reply_text("Укажи адрес на который ты хочешь сминить указанный")
-    write_address(update, context)
+    update.message.reply_text("Укажи новый адрес")
     writing_adrs = True
 
 
@@ -184,8 +183,8 @@ def main():
     dp.add_handler(CommandHandler("setaddress", write_address))
     dp.add_handler(CommandHandler("makealist", create_list))
     dp.add_handler(CommandHandler("editlist", edit_list))
-    dp.add_handler(MessageHandler(Filters.text, reaction))
     dp.add_handler(CommandHandler("editaddress", edit_address))
+    dp.add_handler(MessageHandler(Filters.text, reaction))
     dp.add_handler(CommandHandler("foundshop", make_a_way))
     dp.add_handler(CommandHandler("help", help_me))
 
