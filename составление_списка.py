@@ -9,6 +9,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
+
 add_prod = []
 shopping_list = ''
 all_lists = dict()
@@ -18,10 +19,17 @@ saving = False
 writing_adrs = False
 save = False
 list_prod = []
+check = False
+add_to_list = False
+del_from_list = False
+del_list = False
+
 
 # keyboard
 save_items = [['Да', 'Нет']]
-markup_1 = ReplyKeyboardMarkup(save_items, one_time_keyboard=False)
+check_list = [['Добавить элемент', 'Удалить элемент', 'Удалить список']]
+markup_1 = ReplyKeyboardMarkup(save_items, one_time_keyboard=True)
+markup_list = ReplyKeyboardMarkup(check_list, one_time_keyboard=True)
 
 
 def start(update, context):
@@ -57,10 +65,10 @@ def create_list(update, context):
 
 def reaction(update, context):
     global shopping_list, creating, saving, all_lists, list_prod
-    global writing_adrs, done_address, add_prod, save
+    global writing_adrs, done_address, add_prod, save, check
     if creating:
         list_prod.append(update.message.text)
-        if update.message.text != 'СТОП' and update.message.text != 'стоп':
+        if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
             print(update.message.text)
         else:
             list_prod.pop(list_prod.index(list_prod[-1]))
@@ -89,6 +97,7 @@ def reaction(update, context):
         list_prod = []
         update.message.reply_text(f'Список сохранен как "{name}"')
         saving = False
+
     if writing_adrs:
         address = update.message.reply_text
         update.message.reply_text("Ты успешно установил адрес")
@@ -96,36 +105,52 @@ def reaction(update, context):
         done_address = True
         return address
 
-
-def edit_list(update, context):
-    global add_prod, shopping_list, list_edit
-    update.message.reply_text('Укажи название списка в который ты хочешь добавить продукт(ы)')
-    list_name = update.message.text
-    update.message.reply_text('Укажи продукты которые ты хочешь добавить')
-    update.message.reply_text('Когда закончишь, напиши СТОП')
-    add_prod.append(update.message.text)
-    if update.message.text != 'СТОП' and update.message.text != 'стоп':
-        print(update.message.text)
-    else:
-        add_prod.pop(add_prod.index(add_prod[-1]))
+    if add_to_list:
+        update.message.reply_text('Укажи продукты которые ты хочешь добавить \n Когда закончишь, напиши СТОП')
+        while update.message.text != 'СТОП' and update.message.text != 'стоп':
+            list_prod.append(update.message.text)
+        list_prod.pop(list_prod.index(list_prod[-1]))
         update.message.reply_text('Вот твой список:')
-        for i in sorted(add_prod):
+        for i in sorted(list_prod):
             if not i[-1].isalpha():
                 shopping_list = shopping_list + i + ' шт' + '\n'
             else:
                 shopping_list = shopping_list + i + '\n'
         update.message.reply_text(shopping_list)
+        check = False
         save_list(update, context, shopping_list)
-    import sqlite3
-    con = sqlite3.connect("lists_db.db")
-    cur = con.cursor()
-    quary = """INSERT INTO saves(list) VALUES (""" + str(add_prod) + """)"""
-    saved_list = """SELECT list FROM saves WHERE name_of_list = (""" + str(list_name) + """)"""
-    cur.execute(quary)
-    con.commit()
-    con.close()
-    update.message.reply_text(saved_list)
-    list_edit = True
+    if del_from_list:
+        update.message.reply_text('Укажи продукты которые ты хочешь удалить \n Когда закончишь, напиши СТОП')
+        add_prod.append(update.message.text)
+        if update.message.text != 'СТОП' and update.message.text != 'стоп':
+            print(update.message.text)
+        else:
+            list_prod.pop(list_prod.index(list_prod[-1]))
+            update.message.reply_text('Вот твой изменённый список:')
+            for i in sorted(list_prod):
+                list_prod.remove(i)
+        check = False
+    if del_list:
+        list_prod = []
+        update.message.reply_text('Список успешно удалён')
+
+
+def edit_list(update, context):
+    global add_to_list, del_from_list, del_list
+    update.message.reply_text('Что ты хочешь сделать со списком')
+    choose(update, context)
+    if update.message.text == 'Добавить элемент' and check:
+        add_to_list = True
+    elif update.message.text == 'Удалить элемент' and check:
+        del_from_list = True
+    elif update.message.text == 'Удалить список' and check:
+        del_list = True
+
+
+def choose(update, context):
+    global check
+    update.message.reply_text('Выбери один из вариантов', reply_markup=markup_list)
+    check = True
 
 
 def save_list(update, context, saving_list):  # сохранение списка в бд
@@ -163,7 +188,6 @@ def main():
     dp.add_handler(CommandHandler("editaddress", edit_address))
     dp.add_handler(CommandHandler("foundshop", make_a_way))
     dp.add_handler(CommandHandler("help", help_me))
-    # "/editlist – редактировать список \n"
 
     updater.start_polling()
 
