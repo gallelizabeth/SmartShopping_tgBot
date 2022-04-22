@@ -15,6 +15,8 @@ TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
 done_address = False
 add_prod = []
 shopping_list = ''
+list_edit = False
+writing_adrs = False
 
 
 def start(update, context):
@@ -58,7 +60,7 @@ def make_a_list(update, context):
 
 
 def edit_list(update, context):
-    global add_prod, shopping_list
+    global add_prod, shopping_list, list_edit
     update.message.reply_text('Укажи название списка в который ты хочешь добавить продукт(ы)')
     list_name = update.message.text
     update.message.reply_text('Укажи продукты которые ты хочешь добавить')
@@ -85,6 +87,7 @@ def edit_list(update, context):
     con.commit()
     con.close()
     update.message.reply_text(saved_list)
+    list_edit = True
 
 
 def find_shop(update, context):
@@ -96,8 +99,8 @@ def find_shop(update, context):
 
 def edit_address(update, context):
     global writing_adrs
-    writing_adrs = False
     update.message.reply_text("Укажи адрес на который ты хочешь сминить указанный")
+    write_address(update, context)
     writing_adrs = True
 
 
