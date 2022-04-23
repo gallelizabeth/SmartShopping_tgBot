@@ -65,7 +65,7 @@ def create_list(update, context):
 
 def reaction(update, context):
     global shopping_list, creating, saving, all_lists, list_prod
-    global writing_adrs, done_address, add_prod, save, check
+    global writing_adrs, done_address, add_prod, save, check, add_to_list, del_from_list, del_list
     if creating:
         list_prod.append(update.message.text)
         if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
@@ -73,7 +73,7 @@ def reaction(update, context):
         else:
             list_prod.pop(list_prod.index(list_prod[-1]))
             update.message.reply_text('Вот твой список:')
-            for i in sorted(list_prod):
+            for i in list_prod:
                 if not i[-1].isalpha():
                     shopping_list = shopping_list + i + ' шт' + '\n'
                 else:
@@ -105,46 +105,51 @@ def reaction(update, context):
         done_address = True
         return address
 
-    if add_to_list:
-        update.message.reply_text('Укажи продукты которые ты хочешь добавить \n Когда закончишь, напиши СТОП')
-        while update.message.text != 'СТОП' and update.message.text != 'стоп':
-            list_prod.append(update.message.text)
-        list_prod.pop(list_prod.index(list_prod[-1]))
-        update.message.reply_text('Вот твой список:')
-        for i in sorted(list_prod):
-            if not i[-1].isalpha():
-                shopping_list = shopping_list + i + ' шт' + '\n'
+    if check:
+        if update.message.text == 'Добавить элемент':
+            add_to_list = True
+            update.message.reply_text('Укажи продукты, которые ты хочешь добавить\nКогда закончишь, напиши СТОП')
+        if add_to_list:
+            if update.message.text != 'СТОП' and update.message.text != 'стоп':
+                print(update.message.text)
+                list_prod.append(update.message.text)
             else:
-                shopping_list = shopping_list + i + '\n'
-        update.message.reply_text(shopping_list)
-        check = False
-        save_list(update, context, shopping_list)
-    if del_from_list:
-        update.message.reply_text('Укажи продукты которые ты хочешь удалить \n Когда закончишь, напиши СТОП')
-        add_prod.append(update.message.text)
-        if update.message.text != 'СТОП' and update.message.text != 'стоп':
-            print(update.message.text)
-        else:
-            list_prod.pop(list_prod.index(list_prod[-1]))
-            update.message.reply_text('Вот твой изменённый список:')
-            for i in sorted(list_prod):
-                list_prod.remove(i)
-        check = False
-    if del_list:
-        list_prod = []
-        update.message.reply_text('Список успешно удалён')
+                # list_prod.pop(list_prod.index(list_prod[-1]))
+                print(list_prod)
+                update.message.reply_text('Вот твой список:')
+                print(shopping_list)
+                for i in sorted(list_prod):
+                    if i == 'Добавить элемент':
+                        list_prod.remove(i)
+                    else:
+                        if not i[-1].isalpha():
+                            shopping_list = shopping_list + i + ' шт' + '\n'
+                        else:
+                            shopping_list = shopping_list + i + '\n'
+                update.message.reply_text(shopping_list)
+                check = False
+        elif update.message.text == 'Удалить элемент':
+            del_from_list = True
+        if del_from_list:
+            update.message.reply_text('Укажи продукты, которые ты хочешь удалить\nКогда закончишь, напиши СТОП')
+            add_prod.append(update.message.text)
+            if update.message.text != 'СТОП' and update.message.text != 'стоп':
+                print(update.message.text)
+                list_prod.append(update.message.text)
+            else:
+                update.message.reply_text('Вот твой изменённый список:')
+                for i in list_prod:
+                    shopping_list -= i + ' шт' + '\n'
+            check = False
+        elif update.message.text == 'Удалить список':
+            list_prod = []
+            update.message.reply_text('Список успешно удалён')
+            check = False
 
 
 def edit_list(update, context):
-    global add_to_list, del_from_list, del_list
     update.message.reply_text('Что ты хочешь сделать со списком')
     choose(update, context)
-    if update.message.text == 'Добавить элемент' and check:
-        add_to_list = True
-    elif update.message.text == 'Удалить элемент' and check:
-        del_from_list = True
-    elif update.message.text == 'Удалить список' and check:
-        del_list = True
 
 
 def choose(update, context):
