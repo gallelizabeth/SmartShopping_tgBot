@@ -41,6 +41,7 @@ def start(update, context):
                               "/makealist – собрать список \n"
                               "/foundshop – найти ближайший магазин \n"
                               "/editlist – редактировать список \n"
+                              "/mylist – получить список \n"
                               "нажмите /help , если вам понадобится помощь")
 
 
@@ -82,21 +83,13 @@ def reaction(update, context):
             creating = False
             save_list(update, context, shopping_list)
     elif update.message.text == 'Да' and save:
-        update.message.reply_text('Дай название списку')
+        update.message.reply_text('Список успешно сохранён')
         save = False
-        saving = True
     elif update.message.text == 'Нет' and save:
         shopping_list = ''
         list_prod = []
         save = False
         update.message.reply_text('Список удален')
-    elif saving:
-        name = update.message.text
-        all_lists[name] = shopping_list
-        shopping_list = ''
-        list_prod = []
-        update.message.reply_text(f'Список сохранен как "{name}"')
-        saving = False
 
     if writing_adrs:
         address = update.message.reply_text
@@ -116,7 +109,7 @@ def reaction(update, context):
             else:
                 # list_prod.pop(list_prod.index(list_prod[-1]))
                 print(list_prod)
-                update.message.reply_text('Вот твой список:')
+                update.message.reply_text('Вот твой изменённый список:')
                 print(shopping_list)
                 for i in sorted(list_prod):
                     if i == 'Добавить элемент':
@@ -127,22 +120,35 @@ def reaction(update, context):
                         else:
                             shopping_list = shopping_list + i + '\n'
                 update.message.reply_text(shopping_list)
+                list_prod = []
                 check = False
+
         elif update.message.text == 'Удалить элемент':
             del_from_list = True
-        if del_from_list:
             update.message.reply_text('Укажи продукты, которые ты хочешь удалить\nКогда закончишь, напиши СТОП')
-            add_prod.append(update.message.text)
+        if del_from_list:
+            list_prod = []
             if update.message.text != 'СТОП' and update.message.text != 'стоп':
                 print(update.message.text)
                 list_prod.append(update.message.text)
+                print(list_prod)
             else:
                 update.message.reply_text('Вот твой изменённый список:')
                 for i in list_prod:
-                    shopping_list -= i + ' шт' + '\n'
-            check = False
+                    if i != 'Удалить элемент':
+                        for e in shopping_list.split('\n'):
+                            if i not in e:
+                                add_prod.append(e)
+                for r in add_prod:
+                    print(add_prod)
+                    shopping_list = ''
+                    shopping_list = shopping_list + r + ' шт' + '\n'
+                update.message.reply_text(shopping_list)
+                list_prod = []
+                check = False
+
         elif update.message.text == 'Удалить список':
-            list_prod = []
+            shopping_list = ''
             update.message.reply_text('Список успешно удалён')
             check = False
 
@@ -181,6 +187,14 @@ def edit_address(update, context):
     writing_adrs = True
 
 
+def get_list(update, context):
+    global shopping_list
+    if shopping_list == '':
+        update.message.reply_text('Упс, похоже, твой список пуст')
+    else:
+        update.message.reply_text(f'{shopping_list}')
+
+
 def main():
     updater = Updater(TOKEN)
     dp = updater.dispatcher
@@ -189,6 +203,7 @@ def main():
     dp.add_handler(CommandHandler("makealist", create_list))
     dp.add_handler(CommandHandler("editlist", edit_list))
     dp.add_handler(CommandHandler("editaddress", edit_address))
+    dp.add_handler(CommandHandler("mylist", get_list))
     dp.add_handler(MessageHandler(Filters.text, reaction))
     dp.add_handler(CommandHandler("foundshop", make_a_way))
     dp.add_handler(CommandHandler("help", help_me))
