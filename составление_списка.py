@@ -120,35 +120,23 @@ def reaction(update, context):
                         else:
                             shopping_list = shopping_list + i + '\n'
                 update.message.reply_text(shopping_list)
-                list_prod = []
                 check = False
 
         elif update.message.text == 'Удалить элемент':
             del_from_list = True
             update.message.reply_text('Укажи продукты, которые ты хочешь удалить\nКогда закончишь, напиши СТОП')
         if del_from_list:
-            list_prod = []
             if update.message.text != 'СТОП' and update.message.text != 'стоп':
-                print(update.message.text)
-                list_prod.append(update.message.text)
-                print(list_prod)
+                element = update.message.text
+                a = list_prod.index(element)
+                del list_prod[a]
             else:
                 update.message.reply_text('Вот твой изменённый список:')
-                for i in list_prod:
-                    if i != 'Удалить элемент':
-                        for e in shopping_list.split('\n'):
-                            if i not in e:
-                                add_prod.append(e)
-                for r in add_prod:
-                    print(add_prod)
-                    shopping_list = ''
-                    shopping_list = shopping_list + r + ' шт' + '\n'
-                update.message.reply_text(shopping_list)
-                list_prod = []
+                update.message.reply_text('\n'.join(list_prod))
                 check = False
 
         elif update.message.text == 'Удалить список':
-            shopping_list = ''
+            list_prod = []
             update.message.reply_text('Список успешно удалён')
             check = False
 
