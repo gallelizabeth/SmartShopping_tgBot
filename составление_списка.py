@@ -127,10 +127,12 @@ def reaction(update, context):
             update.message.reply_text('Укажи продукты, которые ты хочешь удалить\nКогда закончишь, напиши СТОП')
         if del_from_list:
             if update.message.text != 'СТОП' and update.message.text != 'стоп':
-                element = update.message.text
-                a = list_prod.index(element)
-                del list_prod[a]
+                add_prod.append(update.message.text)
             else:
+                for element in add_prod:
+                    if element in list_prod:
+                        a = list_prod.index(element)
+                        del list_prod[a]
                 update.message.reply_text('Вот твой изменённый список:')
                 update.message.reply_text('\n'.join(list_prod))
                 check = False
