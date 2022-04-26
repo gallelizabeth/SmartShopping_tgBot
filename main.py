@@ -1,8 +1,9 @@
 import logging
+import math
 
 import requests
 import telegram
-from telegram import ReplyKeyboardMarkup
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Updater, MessageHandler, Filters, CommandHandler
 
 logging.basicConfig(
@@ -11,7 +12,9 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-TOKEN = '5349979559:AAHcXnyvYcT_ETNfqlJiJNC3uDjicwmU3mM'
+TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
+
+markup = ReplyKeyboardRemove()
 
 add_prod = []
 shopping_list = ''
@@ -28,8 +31,9 @@ check = False
 add_to_list = False
 del_from_list = False
 del_list = False
-route = True
+route = False
 to_map = False
+route_done = False
 
 bot = telegram.Bot(TOKEN)
 
@@ -41,20 +45,23 @@ markup_list = ReplyKeyboardMarkup(check_list, one_time_keyboard=True)
 
 
 def start(update, context):
-    update.message.reply_text("Привет! Я помогу тебе составить список покупок и найти нужный магазин")
+    update.message.reply_text("Привет! Я помогу тебе составить список покупок и найти нужный магазин",
+                              reply_markup=markup)
     update.message.reply_text("Рекомендую задать свой адрес командой /setaddress для более качественного"
-                              " пользования \n"
-                              "Также ты сможешь управлять мной, используя эти команды: \n"
-                              "/makealist – собрать список \n"
-                              "/findshop – найти ближайший магазин \n"
-                              "/editlist – редактировать список \n"
-                              "/mylist – получить список \n"
-                              "нажмите /help , если тебе понадобится помощь")
+                              " пользования\n"
+                              "Также ты сможешь управлять мной, используя эти команды:\n"
+                              "/makealist – собрать список\n"
+                              "/editlist – редактировать список\n"
+                              "/mylist – посмотреть список\n"
+                              "/findshop – посмотреть расположение магазина относительно"
+                              "заданного адреса и узнать расстояние между ними\n"
+                              "нажмите /help , если тебе понадобится помощь\n"
+                              "БОТ ОСУЩЕСТВЛЯЕТ РАБОТУ ТОЛЬКО В ПРЕДЕЛАХ МОСКВЫ")
 
 
 def write_address(update, context):
     global writing_adrs
-    update.message.reply_text("Укажи адрес, рядом с которым мы будем искать магазин")
+    update.message.reply_text("Укажи адрес, от которого будет отсчитыться расстояние до магазина")
     writing_adrs = True
 
 
@@ -72,8 +79,8 @@ def create_list(update, context):
 
 
 def reaction(update, context):
-    global shopping_list, creating, saving, all_lists, list_prod, route, address, coordinates_shop
-    global writing_adrs, done_address, add_prod, save, check, add_to_list, del_from_list, del_list
+    global shopping_list, creating, saving, all_lists, list_prod, route, address, coordinates_shop, route_done
+    global writing_adrs, done_address, add_prod, save, check, add_to_list, del_from_list, del_list, to_map
     if creating:
         list_prod.append(update.message.text)
         if update.message.text == 'СТОП' or update.message.text == 'стоп' or update.message.text == 'Стоп':
@@ -89,13 +96,13 @@ def reaction(update, context):
             save_list(update, context, shopping_list)
     elif save:
         if update.message.text == 'Да':
-            update.message.reply_text('Список успешно сохранён')
+            update.message.reply_text('Список успешно сохранён', reply_markup=markup)
             save = False
         elif update.message.text == 'Нет':
             shopping_list = ''
             list_prod = []
             save = False
-            update.message.reply_text('Список удален')
+            update.message.reply_text('Список удален', reply_markup=markup)
 
     elif writing_adrs:
         address = update.message.text
@@ -144,25 +151,68 @@ def reaction(update, context):
             update.message.reply_text('Список успешно удалён')
             check = False
 
-    elif route:
+    if route:
         coordinates_shop = update.message.text
         route = False
+        to_map = True
+        route_done = True
 
-    elif to_map:
-        coordinates_home = coordinates(update, context, address)
-        if not route:
-            coordinates_shop = coordinates(update, context, coordinates_shop)
-            print(coordinates_shop)
+    if to_map:
+        long_h, lat_h = coordinates(update, context, address)
+        if route_done:
+            coordinates_shop = '+'.join((coordinates_shop.split()))
             geocoder_request = 'https://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                               f'geocode={coordinates_shop}&ll={coordinates_home}&format=json'
-            result = coordinates(update, context, geocoder_request)
-            map_shop = 'https://static-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                       f'll={result}&spn=0.005457,0.00319&l=map&pt={result},pm2pn2m~{coordinates_home},pm2pn2m'
-            map_shop = requests.get(map_shop)
-            context.bot.send_photo(map_shop)
-            route = True
+                               f'geocode=Москва+{coordinates_shop}&ll={lat_h},{long_h}&format=json'
+            result = requests.get(geocoder_request)
+            if result:
+                json_response = result.json()
+                toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+                toponym_coodrinates = str(toponym["Point"]["pos"])
+                long_s, lat_s = toponym_coodrinates.split()
+                result, spn = lonlat_distance(long_s, lat_s, long_h, lat_h)
+                map_shop = 'https://static-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
+                           f'll={long_s},{lat_s}&spn={spn}&l=map&pt={long_s},{lat_s},' \
+                           f'pm2pnm~{long_h},{lat_h},pm2pnm'
+                map_shop = requests.get(map_shop)
+                context.bot.send_photo(chat_id=update.message.chat.id, photo=map_shop.content,
+                                       caption=f'Расстояние = {lonlat_distance(long_s, lat_s, long_h, lat_h)} '
+                                               f'метров')
+            else:
+                update.message.reply_text('Вышла ошибка! Проверь написание адресов и попробуй ещё раз')
+            to_map = False
     else:
-        update.message.reply_text('Прости, я тебя не понял. Воспользуся одной из команд /start')
+        if update.message.text != address:
+            update.message.reply_text('Прости, я тебя не понял. Воспользуйся одной из команд /start',
+                                      reply_markup=markup)
+
+
+def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
+
+    degree_to_meters_factor = 111 * 1000
+    a_lon = float(a_lon)
+    a_lat = float(a_lat)
+    b_lon = float(b_lon)
+    b_lat = float(b_lat)
+
+    # Берем среднюю по широте точку и считаем коэффициент для нее.
+    radians_lattitude = math.radians((a_lat + b_lat) / 2.)
+    lat_lon_factor = math.cos(radians_lattitude)
+
+    # Вычисляем смещения в метрах по вертикали и горизонтали.
+    dx = abs(a_lon - b_lon) * degree_to_meters_factor * lat_lon_factor
+    dy = abs(a_lat - b_lat) * degree_to_meters_factor
+
+    # Вычисляем расстояние между точками.
+    distance = math.sqrt(dx * dx + dy * dy)
+
+    if distance <= 300:
+        spn = '0.006,0.004'
+    elif distance <= 600:
+        spn = '0.009,0.006'
+    else:
+        spn = '0.003,0.07'
+
+    return round(distance, 2), spn
 
 
 def edit_list(update, context):
@@ -186,21 +236,20 @@ def coordinates(update, context, name):
     name = name.split()
     name = '+'.join(name)
     geocoder_request = 'https://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                       f'geocode={name}&format=json'
+                       f'geocode=Москва+{name}&format=json'
     response = requests.get(geocoder_request)
     if response:
         json_response = response.json()
         toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
         toponym_coodrinates = str(toponym["Point"]["pos"])
-        print(','.join(toponym_coodrinates.split()))
-        return ','.join(toponym_coodrinates.split())
+        return toponym_coodrinates.split()
 
 
 def find_shop(update, context):
-    global done_address, to_map
+    global done_address, to_map, route
     if done_address:
-        update.message.reply_text('Укажите название магазина')
-        to_map = True
+        update.message.reply_text('Укажите адрес магазина')
+        route = True
     else:
         update.message.reply_text('Вы не указали адрес, рядом с которым мы удем искать магазин\n'
                                   'Воспользуйтесь командой /setaddress')
