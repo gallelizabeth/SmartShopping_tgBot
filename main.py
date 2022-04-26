@@ -162,7 +162,7 @@ def reaction(update, context):
         if route_done:
             coordinates_shop = '+'.join((coordinates_shop.split()))
             geocoder_request = 'https://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                               f'geocode=Москва+{coordinates_shop}&ll={lat_h},{long_h}&format=json'
+                               f'geocode=Москва+{coordinates_shop}&format=json'
             result = requests.get(geocoder_request)
             if result:
                 json_response = result.json()
@@ -175,7 +175,7 @@ def reaction(update, context):
                            f'pm2pnm~{long_h},{lat_h},pm2pnm'
                 map_shop = requests.get(map_shop)
                 context.bot.send_photo(chat_id=update.message.chat.id, photo=map_shop.content,
-                                       caption=f'Расстояние = {lonlat_distance(long_s, lat_s, long_h, lat_h)} '
+                                       caption=f'Расстояние = {result} '
                                                f'метров')
             else:
                 update.message.reply_text('Вышла ошибка! Проверь написание адресов и попробуй ещё раз')
@@ -207,10 +207,10 @@ def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
 
     if distance <= 300:
         spn = '0.006,0.004'
-    elif distance <= 600:
+    elif distance <= 800:
         spn = '0.009,0.006'
     else:
-        spn = '0.003,0.07'
+        spn = '0.009,0.009'
 
     return round(distance, 2), spn
 
@@ -248,10 +248,10 @@ def coordinates(update, context, name):
 def find_shop(update, context):
     global done_address, to_map, route
     if done_address:
-        update.message.reply_text('Укажите адрес магазина')
+        update.message.reply_text('Укажи адрес магазина')
         route = True
     else:
-        update.message.reply_text('Вы не указали адрес, рядом с которым мы удем искать магазин\n'
+        update.message.reply_text('Ты не указал(-а) адрес, от которого мы будем отсчитывать расстояние\n'
                                   'Воспользуйтесь командой /setaddress')
 
 
