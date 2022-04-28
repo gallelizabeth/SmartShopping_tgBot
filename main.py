@@ -12,7 +12,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
+TOKEN = '5349979559:AAHcXnyvYcT_ETNfqlJiJNC3uDjicwmU3mM'
 
 markup = ReplyKeyboardRemove()
 
@@ -85,13 +85,7 @@ def reaction(update, context):
         list_prod.append(update.message.text)
         if update.message.text == 'СТОП' or update.message.text == 'стоп' or update.message.text == 'Стоп':
             list_prod.pop(list_prod.index(list_prod[-1]))
-            update.message.reply_text('Вот твой список:')
-            for i in list_prod:
-                if not i[-1].isalpha():
-                    shopping_list = shopping_list + i + ' шт' + '\n'
-                else:
-                    shopping_list = shopping_list + i + '\n'
-            update.message.reply_text(shopping_list)
+            get_list(update, context)
             creating = False
             save_list(update, context, shopping_list)
     elif save:
@@ -113,51 +107,48 @@ def reaction(update, context):
     elif check:
         if update.message.text == 'Добавить элемент':
             add_to_list = True
+            check = False
             update.message.reply_text('Укажи продукты, которые ты хочешь добавить\nКогда закончишь, напиши СТОП')
-        if add_to_list:
-            if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
-                list_prod.append(update.message.text)
-            else:
-                # list_prod.pop(list_prod.index(list_prod[-1]))
-                update.message.reply_text('Вот твой изменённый список:')
-                for i in sorted(list_prod):
-                    if i == 'Добавить элемент':
-                        list_prod.remove(i)
-                    else:
-                        if not i[-1].isalpha():
-                            shopping_list = shopping_list + i + ' шт' + '\n'
-                        else:
-                            shopping_list = shopping_list + i + '\n'
-                update.message.reply_text(shopping_list)
-                check = False
-
         elif update.message.text == 'Удалить элемент':
             del_from_list = True
+            check = False
             update.message.reply_text('Укажи продукты, которые ты хочешь удалить\nКогда закончишь, напиши СТОП')
-        if del_from_list:
-            if update.message.text != 'СТОП' and update.message.text != 'стоп':
-                add_prod.append(update.message.text)
-            else:
-                for element in add_prod:
-                    if element in list_prod:
-                        a = list_prod.index(element)
-                        del list_prod[a]
-                update.message.reply_text('Вот твой изменённый список:')
-                update.message.reply_text('\n'.join(list_prod))
-                check = False
-
         elif update.message.text == 'Удалить список':
             list_prod = []
             update.message.reply_text('Список успешно удалён')
             check = False
 
-    if route:
+    elif add_to_list:
+        if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
+            list_prod.append(update.message.text)
+        else:
+            shopping_list = ''
+            for i in sorted(list_prod):
+                if i == 'Добавить элемент':
+                    list_prod.remove(i)
+                else:
+                    get_list(update, context)
+            add_to_list = False
+            check = False
+
+    elif del_from_list:
+        if update.message.text != 'СТОП' and update.message.text != 'стоп'\
+                and update.message.text != 'Стоп':
+            for item in list_prod:
+                if update.message.text in item:
+                    list_prod.remove(item)
+        else:
+            get_list(update, context)
+            del_from_list = False
+            check = False
+
+    elif route:
         coordinates_shop = update.message.text
         route = False
         to_map = True
         route_done = True
 
-    if to_map:
+    elif to_map:
         long_h, lat_h = coordinates(update, context, address)
         if route_done:
             coordinates_shop = '+'.join((coordinates_shop.split()))
@@ -194,15 +185,12 @@ def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
     b_lon = float(b_lon)
     b_lat = float(b_lat)
 
-    # Берем среднюю по широте точку и считаем коэффициент для нее.
     radians_lattitude = math.radians((a_lat + b_lat) / 2.)
     lat_lon_factor = math.cos(radians_lattitude)
 
-    # Вычисляем смещения в метрах по вертикали и горизонтали.
     dx = abs(a_lon - b_lon) * degree_to_meters_factor * lat_lon_factor
     dy = abs(a_lat - b_lat) * degree_to_meters_factor
 
-    # Вычисляем расстояние между точками.
     distance = math.sqrt(dx * dx + dy * dy)
 
     if distance <= 300:
@@ -216,14 +204,15 @@ def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
 
 
 def edit_list(update, context):
+    global check
     update.message.reply_text('Что ты хочешь сделать со списком')
+    check = True
     choose(update, context)
 
 
 def choose(update, context):
     global check
     update.message.reply_text('Выбери один из вариантов', reply_markup=markup_list)
-    check = True
 
 
 def save_list(update, context, saving_list):  # сохранение списка в бд
@@ -258,6 +247,7 @@ def find_shop(update, context):
 def get_list(update, context):
     global shopping_list, list_prod
     update.message.reply_text('Вот твой список:')
+    shopping_list = ''
     for i in list_prod:
         if not i[-1].isalpha():
             shopping_list = shopping_list + i + ' шт' + '\n'
