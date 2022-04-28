@@ -12,6 +12,7 @@ class User(SqlAlchemyBase, UserMixin):
     __tablename__ = 'users'
 
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
+    teleg_id = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
     address = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     spisok = sqlalchemy.Column(sqlalchemy.String,  nullable=True)
 

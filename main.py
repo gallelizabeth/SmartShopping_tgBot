@@ -36,7 +36,6 @@ route = False
 to_map = False
 route_done = False
 
-user_id = ''
 
 bot = telegram.Bot(TOKEN)
 
@@ -48,7 +47,6 @@ markup_list = ReplyKeyboardMarkup(check_list, one_time_keyboard=True)
 
 
 def start(update, context):
-    reg()
     update.message.reply_text("Привет! Я помогу тебе составить список покупок и найти нужный магазин",
                               reply_markup=markup)
     update.message.reply_text("Рекомендую задать свой адрес командой /setaddress для более качественного"
@@ -64,15 +62,14 @@ def start(update, context):
 
 
 def reg():
-    global user_id
-    user = bot.get_me()
-    user_id = user.id
+    db_sess = db_session.create_session()
+    u = bot.get_me()
+    teleg_id = u.id
     print(user_id)
     # db_session.global_init("db/blogs.db")
     # user = User()
     # user.user_id = user_id
     # user.user_list = list_prod
-    # db_sess = db_session.create_session()
     # db_sess.add(user)
     # db_sess.commit()
 
@@ -282,14 +279,14 @@ def get_list(update, context):
 
 def main():
     db_session.global_init("db/blogs.db")
-    db_sess = db_session.create_session()
-    user = User(
-        address='road of pushkin house of kolotushkin',
-        spisok= '\n'.join(['qwrqrq 11', 'qwerqr 23', 'wwqrqr 234']),
-    )
-
-    db_sess.add(user)
-    db_sess.commit()
+    # db_sess = db_session.create_session()
+    # user = User(
+    #     address='road of pushkin house of kolotushkin',
+    #     spisok= '\n'.join(['qwrqrq 11', 'qwerqr 23', 'wwqrqr 234']),
+    # )
+    #
+    # db_sess.add(user)
+    # db_sess.commit()
     updater = Updater(TOKEN)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
@@ -301,7 +298,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text, reaction))
     dp.add_handler(CommandHandler("help", help_me))
 
-    # updater.start_polling()
+    updater.start_polling()
 
     updater.idle()
 
