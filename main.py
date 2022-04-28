@@ -1,10 +1,11 @@
 import logging
 import math
-
 import requests
 import telegram
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, message
 from telegram.ext import Updater, MessageHandler, Filters, CommandHandler
+from data import db_session
+from data.user import User
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
@@ -35,6 +36,8 @@ route = False
 to_map = False
 route_done = False
 
+user_id = ''
+
 bot = telegram.Bot(TOKEN)
 
 # keyboard
@@ -45,6 +48,7 @@ markup_list = ReplyKeyboardMarkup(check_list, one_time_keyboard=True)
 
 
 def start(update, context):
+    reg()
     update.message.reply_text("Привет! Я помогу тебе составить список покупок и найти нужный магазин",
                               reply_markup=markup)
     update.message.reply_text("Рекомендую задать свой адрес командой /setaddress для более качественного"
@@ -57,6 +61,20 @@ def start(update, context):
                               "заданного адреса и узнать расстояние между ними\n"
                               "нажмите /help , если тебе понадобится помощь\n"
                               "БОТ ОСУЩЕСТВЛЯЕТ РАБОТУ ТОЛЬКО В ПРЕДЕЛАХ МОСКВЫ")
+
+
+def reg():
+    global user_id
+    user = bot.get_me()
+    user_id = user.id
+    print(user_id)
+    # db_session.global_init("db/blogs.db")
+    # user = User()
+    # user.user_id = user_id
+    # user.user_list = list_prod
+    # db_sess = db_session.create_session()
+    # db_sess.add(user)
+    # db_sess.commit()
 
 
 def write_address(update, context):
@@ -180,10 +198,6 @@ def reaction(update, context):
             else:
                 update.message.reply_text('Вышла ошибка! Проверь написание адресов и попробуй ещё раз')
             to_map = False
-    else:
-        if update.message.text != address:
-            update.message.reply_text('Прости, я тебя не понял. Воспользуйся одной из команд /start',
-                                      reply_markup=markup)
 
 
 def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
@@ -267,6 +281,15 @@ def get_list(update, context):
 
 
 def main():
+    db_session.global_init("db/blogs.db")
+    db_sess = db_session.create_session()
+    user = User(
+        address='road of pushkin house of kolotushkin',
+        spisok= '\n'.join(['qwrqrq 11', 'qwerqr 23', 'wwqrqr 234']),
+    )
+
+    db_sess.add(user)
+    db_sess.commit()
     updater = Updater(TOKEN)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
@@ -278,7 +301,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text, reaction))
     dp.add_handler(CommandHandler("help", help_me))
 
-    updater.start_polling()
+    # updater.start_polling()
 
     updater.idle()
 
