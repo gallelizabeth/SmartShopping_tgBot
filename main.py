@@ -100,7 +100,7 @@ def reaction(update, context):
     global writing_adrs, done_address, add_prod, save, check, add_to_list, del_from_list, del_list, to_map, \
         current_teleg_id
     if creating:
-        list_prod.append(update.message.text)
+        list_prod = [update.message.text]
         if update.message.text == 'СТОП' or update.message.text == 'стоп' or update.message.text == 'Стоп':
             list_prod.pop(list_prod.index(list_prod[-1]))
             update.message.reply_text('Вот твой список:')
@@ -116,8 +116,7 @@ def reaction(update, context):
         if update.message.text == 'Да':
             db_sess = db_session.create_session()
             user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
-            print(user)
-            user.spisok = '\n'.join(list_prod)
+            user.users_list = '\n'.join(list_prod)
             db_sess.commit()
             db_sess.close()
             update.message.reply_text('Список успешно сохранён', reply_markup=markup)
@@ -140,19 +139,20 @@ def reaction(update, context):
             update.message.reply_text('Укажи продукты, которые ты хочешь добавить\nКогда закончишь, напиши СТОП')
         if add_to_list:
             if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
-                list_prod.append(update.message.text)
+                add_prod.append(update.message.text)
             else:
                 # list_prod.pop(list_prod.index(list_prod[-1]))
                 update.message.reply_text('Вот твой изменённый список:')
-                for i in sorted(list_prod):
+                for i in sorted(add_prod):
                     if i == 'Добавить элемент':
-                        list_prod.remove(i)
+                        add_prod.remove(i)
                     else:
-                        if not i[-1].isalpha():
-                            shopping_list = shopping_list + i + ' шт' + '\n'
-                        else:
-                            shopping_list = shopping_list + i + '\n'
-                update.message.reply_text(shopping_list)
+                        db_sess = db_session.create_session()
+                        user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+                        user.users_list += '\n'.join(add_prod)
+                        db_sess.commit()
+                        db_sess.close()
+                add_prod = []
                 check = False
 
         elif update.message.text == 'Удалить элемент':
@@ -162,16 +162,29 @@ def reaction(update, context):
             if update.message.text != 'СТОП' and update.message.text != 'стоп':
                 add_prod.append(update.message.text)
             else:
+                db_sess = db_session.create_session()
+                user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+
                 for element in add_prod:
                     if element in list_prod:
                         a = list_prod.index(element)
                         del list_prod[a]
                 update.message.reply_text('Вот твой изменённый список:')
                 update.message.reply_text('\n'.join(list_prod))
+
+                user.users_list = '\n'.join(list_prod)
+                db_sess.commit()
+                db_sess.close()
+
                 check = False
 
         elif update.message.text == 'Удалить список':
             list_prod = []
+            db_sess = db_session.create_session()
+            user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+            user.users_list = '\n'.join(list_prod)
+            db_sess.commit()
+            db_sess.close()
             update.message.reply_text('Список успешно удалён')
             check = False
 
