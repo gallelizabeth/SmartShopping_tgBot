@@ -12,7 +12,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-TOKEN = '5349979559:AAHcXnyvYcT_ETNfqlJiJNC3uDjicwmU3mM'
+TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
 
 markup = ReplyKeyboardRemove()
 
@@ -82,6 +82,7 @@ def reaction(update, context):
     global shopping_list, creating, saving, all_lists, list_prod, route, address, coordinates_shop, route_done
     global writing_adrs, done_address, add_prod, save, check, add_to_list, del_from_list, del_list, to_map
     if creating:
+        print('creating')
         list_prod.append(update.message.text)
         if update.message.text == 'СТОП' or update.message.text == 'стоп' or update.message.text == 'Стоп':
             list_prod.pop(list_prod.index(list_prod[-1]))
@@ -89,6 +90,7 @@ def reaction(update, context):
             creating = False
             save_list(update, context, shopping_list)
     elif save:
+        print('save')
         if update.message.text == 'Да':
             update.message.reply_text('Список успешно сохранён', reply_markup=markup)
             save = False
@@ -99,12 +101,14 @@ def reaction(update, context):
             update.message.reply_text('Список удален', reply_markup=markup)
 
     elif writing_adrs:
+        print('writing_adrs')
         address = update.message.text
         update.message.reply_text("Ты успешно установил адрес")
         done_address = True
         writing_adrs = False
 
     elif check:
+        print('check')
         if update.message.text == 'Добавить элемент':
             add_to_list = True
             check = False
@@ -119,6 +123,7 @@ def reaction(update, context):
             check = False
 
     elif add_to_list:
+        print('add_to_list')
         if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
             list_prod.append(update.message.text)
         else:
@@ -132,6 +137,7 @@ def reaction(update, context):
             check = False
 
     elif del_from_list:
+        print('del_from_list')
         if update.message.text != 'СТОП' and update.message.text != 'стоп'\
                 and update.message.text != 'Стоп':
             for item in list_prod:
@@ -143,38 +149,44 @@ def reaction(update, context):
             check = False
 
     elif route:
+        print('route')
         coordinates_shop = update.message.text
         route = False
-        to_map = True
-        route_done = True
-
-    elif to_map:
-        long_h, lat_h = coordinates(update, context, address)
-        if route_done:
-            coordinates_shop = '+'.join((coordinates_shop.split()))
-            geocoder_request = 'https://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                               f'geocode=Москва+{coordinates_shop}&format=json'
-            result = requests.get(geocoder_request)
-            if result:
-                json_response = result.json()
-                toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-                toponym_coodrinates = str(toponym["Point"]["pos"])
-                long_s, lat_s = toponym_coodrinates.split()
-                result, spn = lonlat_distance(long_s, lat_s, long_h, lat_h)
-                map_shop = 'https://static-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                           f'll={long_s},{lat_s}&spn={spn}&l=map&pt={long_s},{lat_s},' \
-                           f'pm2pnm~{long_h},{lat_h},pm2pnm'
-                map_shop = requests.get(map_shop)
-                context.bot.send_photo(chat_id=update.message.chat.id, photo=map_shop.content,
-                                       caption=f'Расстояние = {result} '
-                                               f'метров')
-            else:
-                update.message.reply_text('Вышла ошибка! Проверь написание адресов и попробуй ещё раз')
-            to_map = False
+        print('to_map')
+        make_map(update, context, coordinates_shop)
     else:
+        print('else')
         if update.message.text != address:
             update.message.reply_text('Прости, я тебя не понял. Воспользуйся одной из команд /start',
                                       reply_markup=markup)
+
+
+def make_map(update, context, shop):
+    global to_map
+    long_h, lat_h = coordinates(update, context, address)
+    shop = '+'.join((shop.split()))
+    geocoder_request = 'https://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
+                       f'geocode=Москва+{shop}&format=json'
+    result = requests.get(geocoder_request)
+    if result:
+        json_response = result.json()
+        toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+        toponym_coodrinates = str(toponym["Point"]["pos"])
+        long_s, lat_s = toponym_coodrinates.split()
+        result, spn = lonlat_distance(long_s, lat_s, long_h, lat_h)
+        middle_long = (float(long_s) + float(long_h)) / 2
+        middle_lat = (float(lat_s) + float(lat_h)) / 2
+        map_shop = 'https://static-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
+                   f'll={middle_long},{middle_lat}&spn={spn}&l=map&pt={long_s},{lat_s},' \
+                   f'pm2nym~{long_h},{lat_h},pm2pnm'
+        map_shop = requests.get(map_shop)
+        context.bot.send_photo(chat_id=update.message.chat.id, photo=map_shop.content,
+                               caption=f'Расстояние = {result} '
+                                       f'метров\n'
+                                       'Розовым цветом обозначен магазин, а синим - дом')
+    else:
+        update.message.reply_text('Вышла ошибка! Проверь написание адресов и попробуй ещё раз')
+    to_map = False
 
 
 def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
