@@ -18,6 +18,7 @@ TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
 markup = ReplyKeyboardRemove()
 
 add_prod = []
+current_teleg_id = ''
 shopping_list = ''
 address = ''
 coordinates_shop = ''
@@ -47,6 +48,7 @@ markup_list = ReplyKeyboardMarkup(check_list, one_time_keyboard=True)
 
 
 def start(update, context):
+    reg()
     update.message.reply_text("Привет! Я помогу тебе составить список покупок и найти нужный магазин",
                               reply_markup=markup)
     update.message.reply_text("Рекомендую задать свой адрес командой /setaddress для более качественного"
@@ -62,16 +64,16 @@ def start(update, context):
 
 
 def reg():
+    global current_teleg_id
     db_sess = db_session.create_session()
     u = bot.get_me()
-    teleg_id = u.id
-    print(user_id)
-    # db_session.global_init("db/blogs.db")
-    # user = User()
-    # user.user_id = user_id
-    # user.user_list = list_prod
-    # db_sess.add(user)
-    # db_sess.commit()
+    current_teleg_id = u.id
+    c = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+    if not c:
+        user = User()
+        user.teleg_id = current_teleg_id
+        db_sess.add(user)
+        db_sess.commit()
 
 
 def write_address(update, context):
@@ -95,7 +97,8 @@ def create_list(update, context):
 
 def reaction(update, context):
     global shopping_list, creating, saving, all_lists, list_prod, route, address, coordinates_shop, route_done
-    global writing_adrs, done_address, add_prod, save, check, add_to_list, del_from_list, del_list, to_map
+    global writing_adrs, done_address, add_prod, save, check, add_to_list, del_from_list, del_list, to_map, \
+        current_teleg_id
     if creating:
         list_prod.append(update.message.text)
         if update.message.text == 'СТОП' or update.message.text == 'стоп' or update.message.text == 'Стоп':
@@ -111,6 +114,12 @@ def reaction(update, context):
             save_list(update, context, shopping_list)
     elif save:
         if update.message.text == 'Да':
+            db_sess = db_session.create_session()
+            user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+            print(user)
+            user.spisok = '\n'.join(list_prod)
+            db_sess.commit()
+            db_sess.close()
             update.message.reply_text('Список успешно сохранён', reply_markup=markup)
             save = False
         elif update.message.text == 'Нет':
