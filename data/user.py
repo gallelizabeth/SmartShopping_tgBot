@@ -12,7 +12,7 @@ class User(SqlAlchemyBase, UserMixin):
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
     teleg_id = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
     address = sqlalchemy.Column(sqlalchemy.String, nullable=True)
-    users_list = sqlalchemy.Column(sqlalchemy.String,  nullable=True)
+    spisok = sqlalchemy.Column(sqlalchemy.String,  nullable=True)
 
     def __repr__(self):
         return f'<User> {self.id} {self.teleg_id} {self.address}'

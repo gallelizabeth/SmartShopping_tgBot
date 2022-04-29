@@ -6,6 +6,7 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, message
 from telegram.ext import Updater, MessageHandler, Filters, CommandHandler
 from data import db_session
 from data.user import User
+import telebot
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
@@ -47,6 +48,16 @@ markup_1 = ReplyKeyboardMarkup(save_items, one_time_keyboard=True)
 markup_list = ReplyKeyboardMarkup(check_list, one_time_keyboard=True)
 
 
+def true_list(lit):
+    t = []
+    for el in lit:
+        el = el.split(' ')
+        if not el[-1].isdigit():
+            el.extend('1')
+        t.append(' '.join(el))
+    return t
+
+
 def start(update, context):
     reg()
     update.message.reply_text("Привет! Я помогу тебе составить список покупок и найти нужный магазин",
@@ -66,7 +77,7 @@ def start(update, context):
 def reg():
     global current_teleg_id
     db_sess = db_session.create_session()
-    u = bot.get_me()
+    u = message.chat.()
     current_teleg_id = u.id
     c = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
     if not c:
@@ -100,7 +111,7 @@ def reaction(update, context):
     global writing_adrs, done_address, add_prod, save, check, add_to_list, del_from_list, del_list, to_map, \
         current_teleg_id
     if creating:
-        list_prod = [update.message.text]
+        list_prod.append(update.message.text)
         if update.message.text == 'СТОП' or update.message.text == 'стоп' or update.message.text == 'Стоп':
             list_prod.pop(list_prod.index(list_prod[-1]))
             update.message.reply_text('Вот твой список:')
@@ -116,7 +127,8 @@ def reaction(update, context):
         if update.message.text == 'Да':
             db_sess = db_session.create_session()
             user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
-            user.users_list = '\n'.join(list_prod)
+            true_list_prod = true_list(list_prod)
+            user.spisok = '\n'.join(true_list_prod)
             db_sess.commit()
             db_sess.close()
             update.message.reply_text('Список успешно сохранён', reply_markup=markup)
@@ -129,6 +141,11 @@ def reaction(update, context):
 
     elif writing_adrs:
         address = update.message.text
+        db_sess = db_session.create_session()
+        user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+        user.address = address
+        db_sess.commit()
+        db_sess.close()
         update.message.reply_text("Ты успешно установил адрес")
         done_address = True
         writing_adrs = False
@@ -142,17 +159,16 @@ def reaction(update, context):
                 add_prod.append(update.message.text)
             else:
                 # list_prod.pop(list_prod.index(list_prod[-1]))
-                update.message.reply_text('Вот твой изменённый список:')
-                for i in sorted(add_prod):
-                    if i == 'Добавить элемент':
-                        add_prod.remove(i)
-                    else:
-                        db_sess = db_session.create_session()
-                        user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
-                        user.users_list += '\n'.join(add_prod)
-                        db_sess.commit()
-                        db_sess.close()
-                add_prod = []
+                db_sess = db_session.create_session()
+                user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+                add_prod.remove('Добавить элемент')
+                c = user.spisok.split('\n')
+                print(c)
+                user.spisok = '\n'.join(c + add_prod)
+                db_sess.commit()
+                db_sess.close()
+                add_prod.clear()
+                update.message.reply_text('Твой список успешно изменён')
                 check = False
 
         elif update.message.text == 'Удалить элемент':
@@ -162,29 +178,16 @@ def reaction(update, context):
             if update.message.text != 'СТОП' and update.message.text != 'стоп':
                 add_prod.append(update.message.text)
             else:
-                db_sess = db_session.create_session()
-                user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
-
                 for element in add_prod:
                     if element in list_prod:
                         a = list_prod.index(element)
                         del list_prod[a]
                 update.message.reply_text('Вот твой изменённый список:')
                 update.message.reply_text('\n'.join(list_prod))
-
-                user.users_list = '\n'.join(list_prod)
-                db_sess.commit()
-                db_sess.close()
-
                 check = False
 
         elif update.message.text == 'Удалить список':
             list_prod = []
-            db_sess = db_session.create_session()
-            user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
-            user.users_list = '\n'.join(list_prod)
-            db_sess.commit()
-            db_sess.close()
             update.message.reply_text('Список успешно удалён')
             check = False
 
@@ -289,14 +292,11 @@ def find_shop(update, context):
 
 
 def get_list(update, context):
-    global shopping_list, list_prod
     update.message.reply_text('Вот твой список:')
-    for i in list_prod:
-        if not i[-1].isalpha():
-            shopping_list = shopping_list + i + ' шт' + '\n'
-        else:
-            shopping_list = shopping_list + i + '\n'
-    update.message.reply_text(shopping_list)
+    db_sess = db_session.create_session()
+    user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+    spisok = user.spisok
+    update.message.reply_text(spisok)
 
 
 def main():
