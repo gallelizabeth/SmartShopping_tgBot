@@ -59,7 +59,7 @@ def true_list(lit):
 
 
 def start(update, context):
-    reg()
+    reg(update, context)
     update.message.reply_text("Привет! Я помогу тебе составить список покупок и найти нужный магазин",
                               reply_markup=markup)
     update.message.reply_text("Рекомендую задать свой адрес командой /setaddress для более качественного"
@@ -74,11 +74,10 @@ def start(update, context):
                               "БОТ ОСУЩЕСТВЛЯЕТ РАБОТУ ТОЛЬКО В ПРЕДЕЛАХ МОСКВЫ")
 
 
-def reg():
+def reg(update, context):
     global current_teleg_id
     db_sess = db_session.create_session()
-    u = message.chat()
-    current_teleg_id = u.id
+    current_teleg_id = update.message.chat.id
     c = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
     if not c:
         user = User()
@@ -158,13 +157,20 @@ def reaction(update, context):
             if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
                 add_prod.append(update.message.text)
             else:
-                # list_prod.pop(list_prod.index(list_prod[-1]))
                 db_sess = db_session.create_session()
                 user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
-                add_prod.remove('Добавить элемент')
-                c = user.spisok.split('\n')
-                print(c)
-                user.spisok = '\n'.join(c + add_prod)
+                spisok = [user.spisok]
+                for element in add_prod:
+                    if element in spisok:
+                        n = spisok[element].split(' ')
+                        if n[len(n)].isalpha():
+                            if element[len(element)].isalpha():
+                                n[len(n)] += element[len(element)]
+                            else:
+                                n[len(n)] += 1
+                        spisok.append(element)
+                true_list_prod = true_list(spisok)
+                user.spisok = '\n'.join(true_list_prod)
                 db_sess.commit()
                 db_sess.close()
                 add_prod.clear()
@@ -178,16 +184,36 @@ def reaction(update, context):
             if update.message.text != 'СТОП' and update.message.text != 'стоп':
                 add_prod.append(update.message.text)
             else:
+                db_sess = db_session.create_session()
+                user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+                spisok = [user.spisok]
                 for element in add_prod:
-                    if element in list_prod:
-                        a = list_prod.index(element)
-                        del list_prod[a]
+                    if element in spisok:
+                        n = spisok[element].split(' ')
+                        if n[len(n)].isalpha():
+                            if element[len(element)].isalpha():
+                                n[len(n)] -= element[len(element)]
+                            else:
+                                n[len(n)] -= 1
+                        spisok.remove(element)
+                        print(spisok)
+                true_list_prod = true_list(spisok)
+                user.spisok = '\n'.join(true_list_prod)
+                db_sess.commit()
+                db_sess.close()
+                add_prod.clear()
                 update.message.reply_text('Вот твой изменённый список:')
-                update.message.reply_text('\n'.join(list_prod))
+                update.message.reply_text('\n'.join(spisok))
                 check = False
 
         elif update.message.text == 'Удалить список':
             list_prod = []
+            db_sess = db_session.create_session()
+            user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+            user.spisok = ''
+            db_sess.commit()
+            db_sess.close()
+            add_prod.clear()
             update.message.reply_text('Список успешно удалён')
             check = False
 
