@@ -77,7 +77,7 @@ def start(update, context):
 def reg():
     global current_teleg_id
     db_sess = db_session.create_session()
-    u = message.chat.()
+    u = message.chat()
     current_teleg_id = u.id
     c = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
     if not c:
