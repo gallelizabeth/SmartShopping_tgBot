@@ -166,27 +166,31 @@ def reaction(update, context):
                 print(spisok)
                 for element in add_prod:
                     for i in spisok:
-                        if element in spisok:
+                        e = element.split(' ')
+                        num_el = e[len(e) - 2]
+                        if num_el in spisok:
                             if element in i:
                                 if not i.isalpha():
                                     n = i.split(' ')
                                     print(n)
                                     print(element)
+                                    int_n = int(n[len(n) - 1])
                                     if not element.isalpha():
-                                        n[len(n)] += element[len(element)]
+                                        int_n += int(element[len(element) - 1])
                                     else:
-                                        n[len(n)] += 1
+                                        int_n += 1
                                 else:
                                     s = i.split(' ')
-                                    end_list.append(s[len(s)] + ' 2')
+                                    end_list.append(s[len(s) - 1] + ' 2')
                         else:
                             if not element.isalpha():
                                 end_list.append(element)
                             else:
-                                end_list.append(element + ' 1')
-                print(spisok, '1')
+                                end_list.append(element)
                 for i in end_list:
-                    spisok.append(i)
+                    if i not in spisok:
+                        spisok.append(i)
+                print(spisok)
                 true_list_prod = true_list(spisok)
                 user.spisok = '\n'.join(true_list_prod)
                 db_sess.commit()
@@ -205,35 +209,38 @@ def reaction(update, context):
                 db_sess = db_session.create_session()
                 user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
                 spisok = user.spisok
-                spisok = spisok.split('\n')
+                list_ = spisok.split('\n')
                 if 'Удалить элемент' in add_prod:
                     add_prod.remove('Удалить элемент')
-                print(add_prod)
-                print(spisok)
                 for element in add_prod:
-                    for i in spisok:
+                    for i in list_:
                         if element in i:
                             if not i.isalpha():
                                 n = i.split(' ')
-                                print(n)
-                                print(element)
+                                int_n = int(n[len(n) - 1])
                                 if not element.isalpha():
-                                    n[len(n)] -= element[len(element)]
+                                    int_n -= int(element[len(element) - 1])
                                 else:
-                                    n[len(n)] -= 1
+                                    int_n -= 1
+                                    if int_n == 0:
+                                        list_.remove(i)
+                                    else:
+                                        list_.remove(i)
+                                        n[len(n) - 1] = str(int_n)
+                                        list_.append(' '.join(n))
                             else:
-                                spisok.remove(i)
-                print(spisok, '1')
-                true_list_prod = true_list(spisok)
+                                list_.remove(i)
+                print(list_, '1')
+                true_list_prod = true_list(list_)
                 user.spisok = '\n'.join(true_list_prod)
                 db_sess.commit()
                 db_sess.close()
                 add_prod.clear()
                 update.message.reply_text('Вот твой изменённый список:')
-                if len(spisok) == 0:
+                if len(list_) == 0:
                     update.message.reply_text('В вашем списке не осталось продуктов')
                 else:
-                    update.message.reply_text('\n'.join(spisok))
+                    update.message.reply_text('\n'.join(list_))
                 check = False
 
         elif update.message.text == 'Удалить список':
