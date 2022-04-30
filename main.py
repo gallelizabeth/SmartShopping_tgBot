@@ -100,8 +100,7 @@ def help_me(update, context):
 
 def create_list(update, context):
     global creating
-    update.message.reply_text('Введи название продукта и его количество через пробел')
-    update.message.reply_text('Когда закончишь, напиши СТОП')
+    update.message.reply_text('Введи название продукта и его количество через пробел\nКогда закончишь, напиши СТОП')
     creating = True
 
 
@@ -150,7 +149,8 @@ def reaction(update, context):
     elif check:
         if update.message.text == 'Добавить элемент':
             add_to_list = True
-            update.message.reply_text('Укажи продукты, которые ты хочешь добавить\nКогда закончишь, напиши СТОП')
+            update.message.reply_text('Укажи продукты и количество через пробел, которые '
+                                      'ты хочешь добавить\nКогда закончишь, напиши СТОП')
         if add_to_list:
             if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
                 add_prod.append(update.message.text)
@@ -196,7 +196,8 @@ def reaction(update, context):
 
         elif update.message.text == 'Удалить элемент':
             del_from_list = True
-            update.message.reply_text('Укажи продукты, которые ты хочешь удалить\nКогда закончишь, напиши СТОП')
+            update.message.reply_text('Укажи продукты и его количество через пробел, которые'
+                                      ' ты хочешь удалить\nКогда закончишь, напиши СТОП')
         if del_from_list:
             if update.message.text != 'СТОП' and update.message.text != 'стоп':
                 add_prod.append(update.message.text)
