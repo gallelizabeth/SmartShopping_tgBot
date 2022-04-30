@@ -1,5 +1,6 @@
 import logging
 import math
+import os.path
 
 import requests
 import telegram
@@ -215,35 +216,49 @@ def reaction(update, context):
             update.message.reply_text('Список успешно удалён')
             check = False
 
-    if route:
-        coordinates_shop = update.message.text
+    elif route:
+        db_sess = db_session.create_session()
+        db_sess.coordinates_shop = update.message.text
         route = False
-        to_map = True
-        route_done = True
+        make_map(update, context, db_sess.coordinates_shop)
+    else:
+        db_sess = db_session.create_session()
+        user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+        adres = user.address
+        if update.message.text != adres:
+            update.message.reply_text('Прости, я тебя не понял. Воспользуйся одной из команд /start',
+                                      reply_markup=markup)
 
-    if to_map:
-        long_h, lat_h = coordinates(update, context, address)
-        if route_done:
-            coordinates_shop = '+'.join((coordinates_shop.split()))
-            geocoder_request = 'https://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                               f'geocode=Москва+{coordinates_shop}&format=json'
-            result = requests.get(geocoder_request)
-            if result:
-                json_response = result.json()
-                toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-                toponym_coodrinates = str(toponym["Point"]["pos"])
-                long_s, lat_s = toponym_coodrinates.split()
-                result, spn = lonlat_distance(long_s, lat_s, long_h, lat_h)
-                map_shop = 'https://static-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                           f'll={long_s},{lat_s}&spn={spn}&l=map&pt={long_s},{lat_s},' \
-                           f'pm2pnm~{long_h},{lat_h},pm2pnm'
-                map_shop = requests.get(map_shop)
-                context.bot.send_photo(chat_id=update.message.chat.id, photo=map_shop.content,
-                                       caption=f'Расстояние = {result} '
-                                               f'метров')
-            else:
-                update.message.reply_text('Вышла ошибка! Проверь написание адресов и попробуй ещё раз')
-            to_map = False
+
+def make_map(update, context, shop):
+    db_sess = db_session.create_session()
+    user = db_sess.query(User).filter(User.name == update.message.chat.id).first()
+    global to_map
+    long_h, lat_h = coordinates(update, context, user.address)
+    shop = '+'.join((shop.split()))
+    geocoder_request = 'https://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
+                       f'geocode=Москва+{shop}&format=json'
+    result = requests.get(geocoder_request)
+    if result:
+        json_response = result.json()
+        toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+        toponym_coodrinates = str(toponym["Point"]["pos"])
+        long_s, lat_s = toponym_coodrinates.split()
+        result, spn = lonlat_distance(long_s, lat_s, long_h, lat_h)
+        middle_long = (float(long_s) + float(long_h)) / 2
+        middle_lat = (float(lat_s) + float(lat_h)) / 2
+        map_shop = 'https://static-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
+                   f'll={middle_long},{middle_lat}&spn={spn}&l=map&pt={long_s},{lat_s},' \
+                   f'pm2ntm~{long_h},{lat_h},pm2pnm'
+        print(map_shop)
+        map_shop = requests.get(map_shop)
+        print(map_shop)
+        with open('map.png', 'wb') as f:
+            f = f.write(map_shop.content)
+        context.bot.send_photo(chat_id=user.name, photo=map_shop.content,
+                               caption=f'Расстояние = {result} '
+                                       f'метров\n'
+                                       'Розовым цветом обозначен магазин, а синим - отправная точка')
 
 
 def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
@@ -254,23 +269,20 @@ def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
     b_lon = float(b_lon)
     b_lat = float(b_lat)
 
-    # Берем среднюю по широте точку и считаем коэффициент для нее.
     radians_lattitude = math.radians((a_lat + b_lat) / 2.)
     lat_lon_factor = math.cos(radians_lattitude)
 
-    # Вычисляем смещения в метрах по вертикали и горизонтали.
     dx = abs(a_lon - b_lon) * degree_to_meters_factor * lat_lon_factor
     dy = abs(a_lat - b_lat) * degree_to_meters_factor
 
-    # Вычисляем расстояние между точками.
     distance = math.sqrt(dx * dx + dy * dy)
 
     if distance <= 300:
         spn = '0.006,0.004'
-    elif distance <= 800:
+    elif distance <= 900:
         spn = '0.009,0.006'
     else:
-        spn = '0.009,0.009'
+        spn = '0.1,0.1'
 
     return round(distance, 2), spn
 
@@ -324,7 +336,7 @@ def get_list(update, context):
 
 
 def main():
-    db_session.global_init("db''/shopping_bot.db")
+    db_session.global_init(os.path.join("db/shopping_bot.db"))
     updater = Updater(TOKEN)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))

@@ -12,7 +12,6 @@ class User(SqlAlchemyBase, UserMixin):
     address = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     spisok = sqlalchemy.Column(sqlalchemy.String,  nullable=True)
     coordinates_shop = sqlalchemy.Column(sqlalchemy.String, nullable=True)
-    shopping_list = sqlalchemy.Column(sqlalchemy.String, nullable=True)
 
     def __repr__(self):
-        return f'<User> {self.id} {self.teleg_id} {self.address}'
+        return f'<User> {self.id} {self.teleg_id} {self.spisok}'
