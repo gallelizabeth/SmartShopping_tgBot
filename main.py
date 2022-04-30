@@ -15,7 +15,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-TOKEN = '5349979559:AAHcXnyvYcT_ETNfqlJiJNC3uDjicwmU3mM'
+TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
 
 markup = ReplyKeyboardRemove()
 
@@ -42,6 +42,9 @@ markup_list = ReplyKeyboardMarkup(check_list, one_time_keyboard=True)
 
 
 def start(update, context):
+    """
+    Запуск бота
+    """
     reg(update, context)
     update.message.reply_text("Привет! Я помогу тебе составить список покупок и найти нужный магазин",
                               reply_markup=markup)
@@ -58,15 +61,18 @@ def start(update, context):
 
 
 def reg(update, context):
+    """
+    Регистрация
+    """
     user = User()
     user.name = update.message.chat.id
     user.address = ''
     user.shopping_list = ''
     user.coordinates_shop = ''
     user.list_prod = ''
-
     if db_sess.query(User).filter(User.name == update.message.chat.id).count() == 0:
         db_sess.add(user)
+
     db_sess.commit()
 
 
@@ -99,7 +105,6 @@ def reaction(update, context):
     global writing_adrs, done_address, save, check, add_to_list, del_from_list, del_list, to_map
     user = db_sess.query(User).filter(User.name == update.message.chat.id).first()
     if creating:
-        print('creating')
         if update.message.text == 'СТОП' or update.message.text == 'стоп' or update.message.text == 'Стоп':
             user.list_prod = user.list_prod[:-1]
             get_list(update, context)
@@ -107,8 +112,8 @@ def reaction(update, context):
             save_list(update, context, user.shopping_list)
         else:
             user.list_prod = user.list_prod + update.message.text + ','
+
     elif save:
-        print('save')
         if update.message.text == 'Да':
             db_sess.commit()
             update.message.reply_text('Список успешно сохранён', reply_markup=markup)
@@ -121,7 +126,8 @@ def reaction(update, context):
             update.message.reply_text('Список удален', reply_markup=markup)
 
     elif writing_adrs:
-        print('writing_adrs')
+        print(user)
+        print(update.message.text)
         user.address = update.message.text
         db_sess.commit()
         update.message.reply_text("Ты успешно установил адрес")
@@ -129,11 +135,9 @@ def reaction(update, context):
         writing_adrs = False
 
     elif check:
-        print('check')
         function_edit_list(update, context)
 
     elif add_to_list:
-        print('add_to_list')
         if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
             user.list_prod = user.list_prod + ',' + update.message.text + ','
         else:
@@ -145,7 +149,6 @@ def reaction(update, context):
             check = False
 
     elif del_from_list:
-        print('del_from_list')
         list_user_prod = str(user.list_prod).split(',')
         if update.message.text != 'СТОП' and update.message.text != 'стоп'\
                 and update.message.text != 'Стоп':
@@ -160,13 +163,10 @@ def reaction(update, context):
             check = False
 
     elif route:
-        print('route')
         user.coordinates_shop = update.message.text
         route = False
-        print('to_map')
         make_map(update, context, user.coordinates_shop)
     else:
-        print('else')
         if update.message.text != user.address:
             update.message.reply_text('Прости, я тебя не понял. Воспользуйся одной из команд /start',
                                       reply_markup=markup)
@@ -190,12 +190,16 @@ def make_map(update, context, shop):
         middle_lat = (float(lat_s) + float(lat_h)) / 2
         map_shop = 'https://static-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
                    f'll={middle_long},{middle_lat}&spn={spn}&l=map&pt={long_s},{lat_s},' \
-                   f'pm2nym~{long_h},{lat_h},pm2pnm'
+                   f'pm2ntm~{long_h},{lat_h},pm2pnm'
+        print(map_shop)
         map_shop = requests.get(map_shop)
-        context.bot.send_photo(chat_id=update.message.chat.id, photo=map_shop.content,
+        print(map_shop)
+        with open('map.png', 'wb') as f:
+            f = f.write(map_shop.content)
+        context.bot.send_photo(chat_id=user.name, photo=map_shop.content,
                                caption=f'Расстояние = {result} '
                                        f'метров\n'
-                                       'Розовым цветом обозначен магазин, а синим - дом')
+                                       'Розовым цветом обозначен магазин, а синим - отправная точка')
     else:
         update.message.reply_text('Вышла ошибка! Проверь написание адресов и попробуй ещё раз')
     to_map = False
@@ -219,10 +223,10 @@ def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
 
     if distance <= 300:
         spn = '0.006,0.004'
-    elif distance <= 800:
+    elif distance <= 900:
         spn = '0.009,0.006'
     else:
-        spn = '0.009,0.009'
+        spn = '0.1,0.1'
 
     return round(distance, 2), spn
 
@@ -289,9 +293,11 @@ def find_shop(update, context):
 
 
 def get_list(update, context):
+    """
+    Вывод списка
+    """
     user = db_sess.query(User).filter(User.name == update.message.chat.id).first()
     if len(user.list_prod) != 0:
-        print(user.list_prod)
         update.message.reply_text('Вот твой список:')
         user.shopping_list = ''
         res_list = str(user.list_prod).split(',')
@@ -323,6 +329,6 @@ def main():
 
 
 if __name__ == '__main__':
-    db_session.global_init("db/smarts.db")
+    db_session.global_init("db/smart_shopping_list.db")
     db_sess = db_session.create_session()
     main()
