@@ -324,7 +324,7 @@ def get_list(update, context):
 
 
 def main():
-    db_session.global_init("db/blogs.db")
+    db_session.global_init("db''/shopping_bot.db")
     updater = Updater(TOKEN)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
