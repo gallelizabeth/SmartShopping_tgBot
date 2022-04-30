@@ -237,7 +237,7 @@ def reaction(update, context):
                 db_sess.close()
                 add_prod.clear()
                 update.message.reply_text('Вот твой изменённый список:')
-                if len(list_) == 0:
+                if len(list_) <= 0:
                     update.message.reply_text('В вашем списке не осталось продуктов')
                 else:
                     update.message.reply_text('\n'.join(list_))
