@@ -135,7 +135,7 @@ def reaction(update, context):
     elif add_to_list:
         print('add_to_list')
         if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
-            user.list_prod = ',' + user.list_prod + update.message.text + ','
+            user.list_prod = user.list_prod + ',' + update.message.text + ','
         else:
             user.list_prod = user.list_prod[:-1]
             user.shopping_list = ''
