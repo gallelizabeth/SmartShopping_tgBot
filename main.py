@@ -221,6 +221,8 @@ def reaction(update, context):
                                     int_n -= 1
                                     if int_n == 0:
                                         list_.remove(i)
+                                    elif int_n < 0:
+                                        list_.remove(i)
                                     else:
                                         list_.remove(i)
                                         n[len(n) - 1] = str(int_n)
