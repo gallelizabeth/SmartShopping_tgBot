@@ -23,6 +23,11 @@ def global_init(db_file):
     engine = sa.create_engine(conn_str, echo=False)
     __factory = orm.sessionmaker(bind=engine)
 
+<<<<<<< HEAD
+=======
+    # from . import __all_models
+
+>>>>>>> db
     SqlAlchemyBase.metadata.create_all(engine)
 
 

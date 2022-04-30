@@ -3,11 +3,11 @@ import math
 
 import requests
 import telegram
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, message
 from telegram.ext import Updater, MessageHandler, Filters, CommandHandler
-
 from data import db_session
-from data.users import User
+from data.user import User
+import telebot
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
@@ -19,11 +19,18 @@ TOKEN = '5182243678:AAH315moUblzcJYSXYfzS57jIZxNUeVqDMU'
 
 markup = ReplyKeyboardRemove()
 
+add_prod = []
+current_teleg_id = ''
+shopping_list = ''
+address = ''
+coordinates_shop = ''
+all_lists = dict()
 done_address = False
 creating = False
 saving = False
 writing_adrs = False
 save = False
+list_prod = []
 check = False
 add_to_list = False
 del_from_list = False
@@ -31,6 +38,7 @@ del_list = False
 route = False
 to_map = False
 route_done = False
+
 
 bot = telegram.Bot(TOKEN)
 
@@ -41,10 +49,17 @@ markup_1 = ReplyKeyboardMarkup(save_items, one_time_keyboard=True)
 markup_list = ReplyKeyboardMarkup(check_list, one_time_keyboard=True)
 
 
+def true_list(lit):
+    t = []
+    for el in lit:
+        el = el.split(' ')
+        if not el[-1].isdigit():
+            el.extend('1')
+        t.append(' '.join(el))
+    return t
+
+
 def start(update, context):
-    """
-    Запуск бота
-    """
     reg(update, context)
     update.message.reply_text("Привет! Я помогу тебе составить список покупок и найти нужный магазин",
                               reply_markup=markup)
@@ -61,19 +76,15 @@ def start(update, context):
 
 
 def reg(update, context):
-    """
-    Регистрация
-    """
-    user = User()
-    user.name = update.message.chat.id
-    user.address = ''
-    user.shopping_list = ''
-    user.coordinates_shop = ''
-    user.list_prod = ''
-    if db_sess.query(User).filter(User.name == update.message.chat.id).count() == 0:
+    global current_teleg_id
+    db_sess = db_session.create_session()
+    current_teleg_id = update.message.chat.id
+    c = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+    if not c:
+        user = User()
+        user.teleg_id = current_teleg_id
         db_sess.add(user)
-
-    db_sess.commit()
+        db_sess.commit()
 
 
 def write_address(update, context):
@@ -90,119 +101,149 @@ def help_me(update, context):
 
 def create_list(update, context):
     global creating
-    user = db_sess.query(User).filter(User.name == update.message.chat.id).first()
-
-    update.message.reply_text('Введи название продукта и его количество через пробел')
-    update.message.reply_text('Когда закончишь, напиши СТОП')
-    user.list_prod = ''
-    db_sess.commit()
+    update.message.reply_text('Введи название продукта и его количество через пробел\nКогда закончишь, напиши СТОП')
     creating = True
 
 
 def reaction(update, context):
-    global creating, saving, route
-    global route_done
-    global writing_adrs, done_address, save, check, add_to_list, del_from_list, del_list, to_map
-    user = db_sess.query(User).filter(User.name == update.message.chat.id).first()
+    global shopping_list, creating, saving, all_lists, list_prod, route, address, coordinates_shop, route_done
+    global writing_adrs, done_address, add_prod, save, check, add_to_list, del_from_list, del_list, to_map, \
+        current_teleg_id
+    reg(update, context)
     if creating:
+        list_prod.append(update.message.text)
         if update.message.text == 'СТОП' or update.message.text == 'стоп' or update.message.text == 'Стоп':
-            user.list_prod = user.list_prod[:-1]
-            get_list(update, context)
+            list_prod.pop(list_prod.index(list_prod[-1]))
+            update.message.reply_text('Вот твой список:')
+            print(list_prod)
+            update.message.reply_text('\n'.join(list_prod))
             creating = False
-            save_list(update, context, user.shopping_list)
-        else:
-            user.list_prod = user.list_prod + update.message.text + ','
-
+            save_list(update, context)
     elif save:
         if update.message.text == 'Да':
+            db_sess = db_session.create_session()
+            user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+            true_list_prod = true_list(list_prod)
+            user.spisok = '\n'.join(true_list_prod)
             db_sess.commit()
+            db_sess.close()
             update.message.reply_text('Список успешно сохранён', reply_markup=markup)
             save = False
+            list_prod.clear()
         elif update.message.text == 'Нет':
-            user.shopping_list = ''
-            user.list_prod = ''
-            db_sess.commit()
+            shopping_list = ''
+            list_prod.clear()
             save = False
             update.message.reply_text('Список удален', reply_markup=markup)
 
     elif writing_adrs:
-        print(user)
-        print(update.message.text)
-        user.address = update.message.text
+        address = update.message.text
+        db_sess = db_session.create_session()
+        user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+        user.address = address
         db_sess.commit()
+        db_sess.close()
         update.message.reply_text("Ты успешно установил адрес")
         done_address = True
         writing_adrs = False
 
     elif check:
-        function_edit_list(update, context)
+        if update.message.text == 'Добавить элемент':
+            add_to_list = True
+            update.message.reply_text('Укажи продукты и количество через пробел, которые '
+                                      'ты хочешь добавить\nКогда закончишь, напиши СТОП')
+        if add_to_list:
+            if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
+                add_prod.append(update.message.text)
+            else:
+                db_sess = db_session.create_session()
+                user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+                spisok = user.spisok
+                spisik_kopy = spisok.split('\n')
+                list_ = spisok.split('\n')
+                add_prod.remove('Добавить элемент')
+                print(add_prod)
+                for element in add_prod:
+                    for i in spisik_kopy:
+                        list_kopy = ' '.join(list_)
+                        if element in spisok:
+                            if element in i:
+                                if not i.isalpha():
+                                    n = i.split(' ')
+                                    int_n = int(n[len(n) - 1])
+                                    if not element.isalpha():
+                                        int_n += int(element[len(element) - 1])
+                                        n[len(n) - 1] = str(int_n)
+                                        list_.append(' '.join(n))
+                                    else:
+                                        int_n += 1
+                                        list_.remove(i)
+                                        n[len(n) - 1] = str(int_n)
+                                        list_.append(' '.join(n))
+                                else:
+                                    spisik_kopy = str(i) + ' 2'
+                                    list_.append(spisik_kopy)
+                        else:
+                            if element not in list_kopy:
+                                list_.append(element)
+                print(spisok)
+                true_list_prod = true_list(list_)
+                user.spisok = '\n'.join(true_list_prod)
+                db_sess.commit()
+                db_sess.close()
+                add_prod.clear()
+                update.message.reply_text('Твой список успешно изменён')
+                check = False
 
-    elif add_to_list:
-        if update.message.text != 'СТОП' and update.message.text != 'стоп' and update.message.text != 'Стоп':
-            user.list_prod = user.list_prod + ',' + update.message.text + ','
-        else:
-            user.list_prod = user.list_prod[:-1]
-            user.shopping_list = ''
-            db_sess.commit()
-            get_list(update, context)
-            add_to_list = False
+        elif update.message.text == 'Удалить элемент':
+            del_from_list = True
+            update.message.reply_text('Укажи продукты, которые ты хочешь удалить\nКогда закончишь, напиши СТОП')
+        if del_from_list:
+            if update.message.text != 'СТОП' and update.message.text != 'стоп':
+                add_prod.append(update.message.text)
+            else:
+                for element in add_prod:
+                    if element in list_prod:
+                        a = list_prod.index(element)
+                        del list_prod[a]
+                update.message.reply_text('Вот твой изменённый список:')
+                update.message.reply_text('\n'.join(list_prod))
+                check = False
+
+        elif update.message.text == 'Удалить список':
+            list_prod = []
+            update.message.reply_text('Список успешно удалён')
             check = False
 
-    elif del_from_list:
-        list_user_prod = str(user.list_prod).split(',')
-        if update.message.text != 'СТОП' and update.message.text != 'стоп'\
-                and update.message.text != 'Стоп':
-            for item in list_user_prod:
-                if update.message.text in item:
-                    list_user_prod.remove(item)
-                    user.list_prod = ','.join(list_user_prod)
-            db_sess.commit()
-        else:
-            get_list(update, context)
-            del_from_list = False
-            check = False
-
-    elif route:
-        user.coordinates_shop = update.message.text
+    if route:
+        coordinates_shop = update.message.text
         route = False
-        make_map(update, context, user.coordinates_shop)
-    else:
-        if update.message.text != user.address:
-            update.message.reply_text('Прости, я тебя не понял. Воспользуйся одной из команд /start',
-                                      reply_markup=markup)
+        to_map = True
+        route_done = True
 
-
-def make_map(update, context, shop):
-    user = db_sess.query(User).filter(User.name == update.message.chat.id).first()
-    global to_map
-    long_h, lat_h = coordinates(update, context, user.address)
-    shop = '+'.join((shop.split()))
-    geocoder_request = 'https://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                       f'geocode=Москва+{shop}&format=json'
-    result = requests.get(geocoder_request)
-    if result:
-        json_response = result.json()
-        toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-        toponym_coodrinates = str(toponym["Point"]["pos"])
-        long_s, lat_s = toponym_coodrinates.split()
-        result, spn = lonlat_distance(long_s, lat_s, long_h, lat_h)
-        middle_long = (float(long_s) + float(long_h)) / 2
-        middle_lat = (float(lat_s) + float(lat_h)) / 2
-        map_shop = 'https://static-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
-                   f'll={middle_long},{middle_lat}&spn={spn}&l=map&pt={long_s},{lat_s},' \
-                   f'pm2ntm~{long_h},{lat_h},pm2pnm'
-        print(map_shop)
-        map_shop = requests.get(map_shop)
-        print(map_shop)
-        with open('map.png', 'wb') as f:
-            f = f.write(map_shop.content)
-        context.bot.send_photo(chat_id=user.name, photo=map_shop.content,
-                               caption=f'Расстояние = {result} '
-                                       f'метров\n'
-                                       'Розовым цветом обозначен магазин, а синим - отправная точка')
-    else:
-        update.message.reply_text('Вышла ошибка! Проверь написание адресов и попробуй ещё раз')
-    to_map = False
+    if to_map:
+        long_h, lat_h = coordinates(update, context, address)
+        if route_done:
+            coordinates_shop = '+'.join((coordinates_shop.split()))
+            geocoder_request = 'https://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
+                               f'geocode=Москва+{coordinates_shop}&format=json'
+            result = requests.get(geocoder_request)
+            if result:
+                json_response = result.json()
+                toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
+                toponym_coodrinates = str(toponym["Point"]["pos"])
+                long_s, lat_s = toponym_coodrinates.split()
+                result, spn = lonlat_distance(long_s, lat_s, long_h, lat_h)
+                map_shop = 'https://static-maps.yandex.ru/1.x/?apikey=40d1649f-0493-4b70-98ba-98533de7710b&' \
+                           f'll={long_s},{lat_s}&spn={spn}&l=map&pt={long_s},{lat_s},' \
+                           f'pm2pnm~{long_h},{lat_h},pm2pnm'
+                map_shop = requests.get(map_shop)
+                context.bot.send_photo(chat_id=update.message.chat.id, photo=map_shop.content,
+                                       caption=f'Расстояние = {result} '
+                                               f'метров')
+            else:
+                update.message.reply_text('Вышла ошибка! Проверь написание адресов и попробуй ещё раз')
+            to_map = False
 
 
 def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
@@ -213,57 +254,39 @@ def lonlat_distance(a_lon, a_lat, b_lon, b_lat):
     b_lon = float(b_lon)
     b_lat = float(b_lat)
 
+    # Берем среднюю по широте точку и считаем коэффициент для нее.
     radians_lattitude = math.radians((a_lat + b_lat) / 2.)
     lat_lon_factor = math.cos(radians_lattitude)
 
+    # Вычисляем смещения в метрах по вертикали и горизонтали.
     dx = abs(a_lon - b_lon) * degree_to_meters_factor * lat_lon_factor
     dy = abs(a_lat - b_lat) * degree_to_meters_factor
 
+    # Вычисляем расстояние между точками.
     distance = math.sqrt(dx * dx + dy * dy)
 
     if distance <= 300:
         spn = '0.006,0.004'
-    elif distance <= 900:
+    elif distance <= 800:
         spn = '0.009,0.006'
     else:
-        spn = '0.1,0.1'
+        spn = '0.009,0.009'
 
     return round(distance, 2), spn
 
 
 def edit_list(update, context):
-    global check
     update.message.reply_text('Что ты хочешь сделать со списком')
-    check = True
     choose(update, context)
-
-
-def function_edit_list(update, context):
-    user = db_sess.query(User).filter(User.name == update.message.chat.id).first()
-    global add_to_list, check, del_from_list, list_prod
-    if update.message.text == 'Добавить элемент':
-        add_to_list = True
-        check = False
-        update.message.reply_text('Укажи продукты, которые ты хочешь добавить\n'
-                                  'Когда закончишь, напиши СТОП', reply_markup=markup)
-    elif update.message.text == 'Удалить элемент':
-        del_from_list = True
-        check = False
-        update.message.reply_text('Укажи продукты, которые ты хочешь удалить\n'
-                                  'Когда закончишь, напиши СТОП', reply_markup=markup)
-    elif update.message.text == 'Удалить список':
-        user.list_prod = ''
-        db_sess.commit()
-        update.message.reply_text('Список успешно удалён', reply_markup=markup)
-        check = False
 
 
 def choose(update, context):
     global check
     update.message.reply_text('Выбери один из вариантов', reply_markup=markup_list)
+    check = True
 
 
-def save_list(update, context, saving_list):  # сохранение списка в бд
+def save_list(update, context):  # сохранение списка в бд
     global save
     update.message.reply_text("Ты хочешь сохранить список?", reply_markup=markup_1)
     save = True
@@ -293,25 +316,15 @@ def find_shop(update, context):
 
 
 def get_list(update, context):
-    """
-    Вывод списка
-    """
-    user = db_sess.query(User).filter(User.name == update.message.chat.id).first()
-    if len(user.list_prod) != 0:
-        update.message.reply_text('Вот твой список:')
-        user.shopping_list = ''
-        res_list = str(user.list_prod).split(',')
-        for i in res_list:
-            if not i[-1].isalpha() or not i[-2].isalpha():
-                user.shopping_list = user.shopping_list + i + ' шт' + '\n'
-            else:
-                user.shopping_list = user.shopping_list + i + '\n'
-        update.message.reply_text(user.shopping_list)
-    else:
-        update.message.reply_text('Список пуст')
+    reg(update, context)
+    update.message.reply_text('Вот твой список:')
+    db_sess = db_session.create_session()
+    user = db_sess.query(User).filter(User.teleg_id == current_teleg_id).first()
+    update.message.reply_text(user.spisok)
 
 
 def main():
+    db_session.global_init("db/blogs.db")
     updater = Updater(TOKEN)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
@@ -329,6 +342,4 @@ def main():
 
 
 if __name__ == '__main__':
-    db_session.global_init("db/smart_shopping_list.db")
-    db_sess = db_session.create_session()
     main()
