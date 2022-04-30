@@ -219,7 +219,7 @@ def reaction(update, context):
                                     list_.append(' '.join(n))
                                 else:
                                     int_n -= 1
-                                    if int_n <= 0:
+                                    if int_n == 0:
                                         list_.remove(i)
                                     else:
                                         list_.remove(i)
